@@ -112,6 +112,8 @@ def main():
             print("\n  → Reset to home pose")
         elif keycode == KEY_A:
             auto_mode = not auto_mode
+            # stavlja Auto Connect na false da se ne bi prikazivao plavo oko joint-ova
+            viewer.opt.flags[mujoco.mjtVisFlag.mjVIS_AUTOCONNECT] = 0
             t_auto    = time.time()
             print(f"\n  → Auto-cycle {'ON' if auto_mode else 'OFF'}")
         elif keycode in POSES:
