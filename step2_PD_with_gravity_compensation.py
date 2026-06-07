@@ -39,7 +39,7 @@ POSES = {
 
 # ── Auto-cycle waypoints ──────────────────────────────────────────────────────
 WAYPOINTS  = [pose for _, pose in POSES.values()]
-DWELL_TIME = 3.0   # seconds at each waypoint before moving to the next
+DWELL_TIME = 2.0   # seconds at each waypoint before moving to the next
 
 # ── PD gains ──────────────────────────────────────────────────────────────────
 # Joints closer to the base carry more load → higher gains.
@@ -112,7 +112,7 @@ def main():
             print("\n  → Reset to home pose")
         elif keycode == KEY_A:
             auto_mode = not auto_mode
-            # stavlja Auto Connect na false da se ne bi prikazivao plavo oko joint-ova
+            # stavlja Auto Connect na false da ne bi prikazivao plavo oko joint-ova
             viewer.opt.flags[mujoco.mjtVisFlag.mjVIS_AUTOCONNECT] = 0
             t_auto    = time.time()
             print(f"\n  → Auto-cycle {'ON' if auto_mode else 'OFF'}")
@@ -128,7 +128,7 @@ def main():
         viewer.cam.distance  = 1.5
         viewer.cam.lookat[:] = [0.2, 0.0, 0.4]
 
-        print("\nSimulation running — PD + gravity compensation (Pinocchio).")
+        print("\nSimulation running — PD + gravity compensation.")
         print("SPACE=pause  R=reset  A=auto-cycle  1/2/3=pose  ESC=quit\n")
 
         t_print = time.time()
