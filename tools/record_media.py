@@ -56,13 +56,14 @@ def _font(size):
     return ImageFont.load_default()
 
 
-def make_camera():
+def make_camera(**overrides):
+    spec = dict(CAM, **overrides)
     cam = mujoco.MjvCamera()
     cam.type = mujoco.mjtCamera.mjCAMERA_FREE
-    cam.azimuth = CAM["azimuth"]
-    cam.elevation = CAM["elevation"]
-    cam.distance = CAM["distance"]
-    cam.lookat[:] = CAM["lookat"]
+    cam.azimuth = spec["azimuth"]
+    cam.elevation = spec["elevation"]
+    cam.distance = spec["distance"]
+    cam.lookat[:] = spec["lookat"]
     return cam
 
 
@@ -103,15 +104,27 @@ def caption(img_arr, lines, sub_color=(206, 206, 200)):
     return np.asarray(img)
 
 
-def write_gif(path, frames, fps=FPS, colors=64):
+def write_gif(path, frames, fps=FPS, colors=64, hold_first=0, hold_last=0):
+    """hold_first / hold_last are extra milliseconds on the end frames.
+
+    They have to be expressed as frame durations rather than as repeated
+    frames: Pillow collapses identical consecutive frames, so a "pause" built
+    by duplicating a frame silently disappears.
+    """
     # One shared palette from the first frame, and disposal=1 so Pillow can
     # delta-encode against the previous frame instead of repainting all of it.
     base = Image.fromarray(frames[0]).convert(
         "P", palette=Image.ADAPTIVE, colors=colors)
     imgs = [base] + [Image.fromarray(f).quantize(palette=base, dither=Image.NONE)
                      for f in frames[1:]]
+
+    step = int(1000 / fps)
+    durations = [step] * len(imgs)
+    durations[0] += hold_first
+    durations[-1] += hold_last
+
     imgs[0].save(path, save_all=True, append_images=imgs[1:],
-                 duration=int(1000 / fps), loop=0, optimize=True, disposal=1)
+                 duration=durations, loop=0, optimize=True, disposal=1)
     mb = os.path.getsize(path) / 1e6
     print(f"  wrote {path}  ({len(frames)} frames, {mb:.1f} MB)")
 
@@ -128,19 +141,33 @@ def still_home():
     print(f"  wrote {path}")
 
 
-def gif_gravity_collapse(seconds=2.6):
-    """Korak 1: zero torque, the arm just falls."""
+# Raised, half-extended start for the step-1 clip. From the home pose the arm
+# only crumples in on itself; from here the tool drops ~0.87 m, which actually
+# reads as a collapse.
+COLLAPSE_START = np.array([0.0, -0.9, 0.0, 1.2, 0.0, 0.0, 0.0])
+
+
+def gif_gravity_collapse(seconds=3.4):
+    """Korak 1: zero torque, the arm falls."""
     sim = _sim.ArmSim(s3.MODE_CT_FULL, gravity_only=True)
-    r, cam = renderer_for(sim, 560, 440), make_camera()
-    frames = []
+    sim.data.qpos[sim.qpos_ids] = COLLAPSE_START
+    mujoco.mj_forward(sim.model, sim.data)
+
+    r = renderer_for(sim, 520, 470)
+    cam = make_camera(elevation=-15, distance=2.25, lookat=[0.05, 0.0, 0.58])
+    lines = [("Step 1 - no control torque", True),
+             ("tau = 0, the arm falls under gravity", False)]
+
+    frames = [caption(grab(r, sim, cam), lines)]
     for i in range(int(seconds / sim.dt)):
         sim.step()
         if i % EVERY == 0:
-            frames.append(caption(grab(r, sim, cam),
-                                  [("Step 1 - no control torque", True),
-                                   ("tau = 0, the arm falls under gravity", False)]))
+            frames.append(caption(grab(r, sim, cam), lines))
+
     r.close()
-    write_gif(os.path.join(MEDIA, "step1-gravity.gif"), frames)
+    # Pause on the raised pose, and again on the heap, so the loop reads.
+    write_gif(os.path.join(MEDIA, "step1-gravity.gif"), frames,
+              hold_first=900, hold_last=900)
 
 
 def gif_hero(laps=1):

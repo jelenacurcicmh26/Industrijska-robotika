@@ -16,29 +16,7 @@ every step.
 Course project — *Industrijska robotika*, doctoral studies, Faculty of Technical Sciences,
 University of Novi Sad.
 
----
-
-## Sažetak (srpski)
-
-Projekat pokazuje upravljanje robotskom rukom xArm7 na nivou momenata u zglobovima, kroz
-tri koraka rastuće složenosti. MuJoCo služi kao simulator (realni sistem), dok Pinocchio
-računa dinamički model koji upravljački zakon koristi.
-
-- **1. korak** — bez upravljanja, `τ = 0`. Ruka pada pod dejstvom gravitacije. Služi za
-  proveru da se gravitacioni momenti izračunati Pinocchio-om poklapaju sa MuJoCo-vim
-  `qfrc_bias`.
-- **2. korak** — PD regulator sa kompenzacijom gravitacije. Radi, ali pojačanja moraju da
-  se podešavaju za svaki zglob posebno, jer efektivna inercija zavisi od konfiguracije.
-- **3. korak** — upravljanje inverznom dinamikom (*computed torque*). Zakon računa moment
-  koji je zaista potreban, pa se greška svodi na linearnu jednačinu koja je ista za sve
-  zglobove — jedno pojačanje umesto sedam parova.
-
-**Glavni nalaz:** udžbenički oblik zakona inverzne dinamike otkazuje na ovom modelu.
-Model `xarm7.xml` sadrži i viskozno trenje i Kulonovo trenje u zglobovima, a ti članovi
-nisu deo krutog modela `M·q̈ + C·q̇ + g`. Bez njihove kompenzacije upravljanje inverznom
-dinamikom prati **lošije** od običnog PD regulatora iz 2. koraka (2.98° naspram 0.99°
-srednje kvadratne greške). Tek kada se dodaju, greška pada na 0.03°. Zaključak: zakon
-zasnovan na modelu vredi tačno onoliko koliko vredi model.
+**🇷🇸 [Ova stranica na srpskom](README.sr.md)**
 
 ---
 
