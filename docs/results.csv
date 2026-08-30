@@ -1,0 +1,5 @@
+controller,rms_error_deg,peak_error_deg,saturated_pct
+PD + gravity,0.9924,3.2905,0.0
+"Computed torque, rigid body",2.9790,11.6584,0.0
+"Computed torque, full model",0.0290,0.2014,0.0
+"Computed torque, full model, step reference",6.9793,74.4817,7.0

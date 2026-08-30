@@ -1,0 +1,28 @@
+# Conda environment for the industrial robotics project.
+#
+# Pinocchio has no Windows wheel on PyPI, so it must come from conda-forge.
+# Note: the PyPI package named "pinocchio" is an unrelated abandoned project --
+# installing it with pip gives an empty module without buildModelFromMJCF.
+#
+# Create with:
+#   conda env create -f environment.yml
+# Activate with:
+#   conda activate robotika
+name: robotika
+
+channels:
+  - conda-forge
+  - nodefaults          # avoid Anaconda's default channels (separate ToS)
+
+dependencies:
+  - python=3.12
+  - pinocchio=4.1.0
+  - mujoco=3.12.0
+  - numpy
+  # Only needed by tools/record_media.py, which renders the GIFs in docs/media.
+  # The controllers and tools/benchmark.py do not import them. There is no
+  # plotting library here on purpose: matplotlib's compiled extensions fail to
+  # load alongside this mujoco/pinocchio stack on Windows (delay-load error
+  # 0xc06d007f in matplotlib._path), so tools/_svg.py writes the figures itself.
+  - pillow
+  - imageio
