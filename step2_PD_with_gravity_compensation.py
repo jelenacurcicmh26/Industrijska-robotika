@@ -128,7 +128,7 @@ def main():
         viewer.cam.distance  = 1.5
         viewer.cam.lookat[:] = [0.2, 0.0, 0.4]
 
-        print("\nSimulation running — PD + gravity compensation.")
+        print("\nSimulation running: PD + gravity compensation.")
         print("SPACE=pause  R=reset  A=auto-cycle  1/2/3=pose  ESC=quit\n")
 
         t_print = time.time()

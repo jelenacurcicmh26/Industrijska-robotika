@@ -1,4 +1,4 @@
-# xArm7 — Torque-Level Control in MuJoCo
+# xArm7 Torque-Level Control in MuJoCo
 
 Three joint-torque controllers on a 7-DOF UFACTORY xArm7, built one on top of the other.
 MuJoCo runs the physics and stands in for the real robot. Pinocchio computes the
@@ -13,8 +13,8 @@ before relying on anything.
 ![MuJoCo](https://img.shields.io/badge/MuJoCo-3.12-orange)
 ![Pinocchio](https://img.shields.io/badge/Pinocchio-4.1-green)
 
-Course project for *Industrijska robotika*, doctoral studies, Faculty of Technical
-Sciences, University of Novi Sad.
+Course project for *Odabrana poglavlja iz Industrijske robotike*, doctoral studies,
+Faculty of Technical Sciences, University of Novi Sad.
 
 **🇷🇸 [Ova stranica na srpskom](README.sr.md)**
 
@@ -57,7 +57,7 @@ Keys, once the viewer window has focus:
 
 ---
 
-## Step 1 — gravity only
+## Step 1: gravity only
 
 <p align="center">
   <img src="docs/media/step1-gravity.gif" width="520" alt="The arm collapsing under gravity with zero control torque">
@@ -69,7 +69,7 @@ file against MuJoCo's own `qfrc_bias`. They match to about 1e-13 N·m. Steps 2 a
 assume that Pinocchio's model describes the same robot MuJoCo is simulating, so it is
 worth confirming once.
 
-## Step 2 — PD with gravity compensation
+## Step 2: PD with gravity compensation
 
 $$\tau = g(q) + K_p (q_d - q) + K_d(\dot q_d - \dot q)$$
 
@@ -79,7 +79,7 @@ configuration: an outstretched arm is much harder to swing than a folded one. On
 value ends up too soft in one pose and too twitchy in another, which is why there are
 seven hand-tuned pairs in the file.
 
-## Step 3 — inverse dynamics (computed torque)
+## Step 3: inverse dynamics (computed torque)
 
 $$\tau = M(q)\,a_{\text{ref}} + C(q,\dot q)\dot q + g(q) + D\dot q + f_c \tanh(\dot q / \varepsilon)$$
 
@@ -214,20 +214,6 @@ There is no plotting library in `environment.yml`, which is deliberate. matplotl
 compiled extensions will not load next to this mujoco/pinocchio stack on Windows: any draw
 call dies with delay-load error `0xc06d007f` in `matplotlib._path`, with no traceback. So
 `tools/_svg.py` writes the SVGs directly.
-
-## Next steps
-
-- **Operational-space control.** Add the task-space inertia $\Lambda = (JM^{-1}J^\top)^{-1}$
-  and a dynamically consistent nullspace projector, to finish
-  [`controllers/impedance_control.py`](controllers/impedance_control.py).
-- **Adaptive control (Slotine–Li).** The dynamics are linear in the inertial parameters, and
-  Pinocchio has `computeJointTorqueRegressor`, so the robot could identify for itself what
-  this project currently reads out of an XML file. After the friction result above, this is
-  the obvious thing to try next.
-- **Momentum-based external torque observer,** for collision detection and hand-guiding
-  without a force/torque sensor.
-- **QP-based control,** solving for τ subject to the real actuator limits, joint limits and
-  obstacle-avoidance constraints.
 
 ## Attribution
 

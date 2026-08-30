@@ -94,7 +94,7 @@ def main():
         viewer.cam.distance  = 1.5
         viewer.cam.lookat[:] = [0.2, 0.0, 0.4]
 
-        print("\nSimulation running (gravity only — no control torques).")
+        print("\nSimulation running (gravity only, no control torques).")
         print("Columns: τ_pin = Pinocchio gravity  |  τ_muj = MuJoCo qfrc_bias  |  err = max |Δ|")
         print("SPACE=pause  R=reset  ESC=quit\n")
 

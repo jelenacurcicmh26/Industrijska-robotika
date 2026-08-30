@@ -333,7 +333,7 @@ def main():
         viewer.cam.distance  = 1.5
         viewer.cam.lookat[:] = [0.2, 0.0, 0.4]
 
-        print(f"\nSimulation running — {MODE_NAMES[mode]}.")
+        print(f"\nSimulation running: {MODE_NAMES[mode]}.")
         print("SPACE=pause  R=reset  A=auto-cycle  1/2/3=pose  C=controller  E=reset stats  ESC=quit\n")
 
         t_print = time.time()
