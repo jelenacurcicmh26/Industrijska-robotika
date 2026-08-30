@@ -1,9 +1,9 @@
 # xArm7 — Torque-Level Control in MuJoCo
 
-Three joint-torque controllers of increasing sophistication on a 7-DOF UFACTORY xArm7,
-built up one step at a time. **MuJoCo** is the plant, **Pinocchio** supplies the rigid-body
-model the controllers reason with, and the two are cross-checked against each other at
-every step.
+Three joint-torque controllers on a 7-DOF UFACTORY xArm7, built one on top of the other.
+MuJoCo runs the physics and stands in for the real robot. Pinocchio computes the
+rigid-body model that the controllers use. Each step checks the two against each other
+before relying on anything.
 
 <p align="center">
   <img src="docs/media/hero.gif" width="620" alt="xArm7 tracking a waypoint cycle under inverse dynamics control">
@@ -13,8 +13,8 @@ every step.
 ![MuJoCo](https://img.shields.io/badge/MuJoCo-3.12-orange)
 ![Pinocchio](https://img.shields.io/badge/Pinocchio-4.1-green)
 
-Course project — *Industrijska robotika*, doctoral studies, Faculty of Technical Sciences,
-University of Novi Sad.
+Course project for *Industrijska robotika*, doctoral studies, Faculty of Technical
+Sciences, University of Novi Sad.
 
 **🇷🇸 [Ova stranica na srpskom](README.sr.md)**
 
@@ -28,7 +28,7 @@ University of Novi Sad.
 | 2 | [`step2_PD_with_gravity_compensation.py`](step2_PD_with_gravity_compensation.py) | `τ = g(q) + Kp·e + Kd·ė` |
 | 3 | [`step3_computed_torque.py`](step3_computed_torque.py) | `τ = M(q)·a_ref + C(q,q̇)·q̇ + g(q) + friction` |
 
-## Quick start
+## Running it
 
 ```bash
 conda env create -f environment.yml
@@ -39,9 +39,9 @@ python step2_PD_with_gravity_compensation.py
 python step3_computed_torque.py
 ```
 
-Pinocchio has no Windows wheel on PyPI and must come from conda-forge. The PyPI package
-called `pinocchio` is an unrelated abandoned project — installing it with pip gives an
-empty module with no `buildModelFromMJCF`.
+Pinocchio has to come from conda-forge; there is no Windows wheel on PyPI. Watch out for
+the PyPI package called `pinocchio`, which is a different, abandoned project. Installing
+that one with pip gives you an empty module with no `buildModelFromMJCF`.
 
 Keys, once the viewer window has focus:
 
@@ -63,18 +63,21 @@ Keys, once the viewer window has focus:
   <img src="docs/media/step1-gravity.gif" width="520" alt="The arm collapsing under gravity with zero control torque">
 </p>
 
-Zero torque on every joint, so the arm falls. The point is not the falling — it is that
-each step compares the gravity torque Pinocchio computes from the MJCF against MuJoCo's
-own `qfrc_bias`. They agree to ~1e-13 N·m, which is what licenses everything after this.
+Zero torque on every joint, so the arm falls over. The falling is not really the point.
+What this step is for is comparing the gravity torque Pinocchio computes from the MJCF
+file against MuJoCo's own `qfrc_bias`. They match to about 1e-13 N·m. Steps 2 and 3 both
+assume that Pinocchio's model describes the same robot MuJoCo is simulating, so it is
+worth confirming once.
 
 ## Step 2 — PD with gravity compensation
 
 $$\tau = g(q) + K_p (q_d - q) + K_d(\dot q_d - \dot q)$$
 
-Gravity is cancelled by feedforward, and a spring-damper handles the rest. It works, but
-the effective inertia a joint presents depends on the configuration — an outstretched arm
-is far harder to swing than a folded one — so a single gain is too soft in one pose and
-too twitchy in another. Hence seven hand-tuned gain pairs.
+Feedforward cancels gravity and a spring-damper handles the rest. This works well enough,
+but the gains are awkward to tune. How much inertia a joint sees depends on the
+configuration: an outstretched arm is much harder to swing than a folded one. One gain
+value ends up too soft in one pose and too twitchy in another, which is why there are
+seven hand-tuned pairs in the file.
 
 ## Step 3 — inverse dynamics (computed torque)
 
@@ -82,21 +85,21 @@ $$\tau = M(q)\,a_{\text{ref}} + C(q,\dot q)\dot q + g(q) + D\dot q + f_c \tanh(\
 
 $$a_{\text{ref}} = \ddot q_d + K_d(\dot q_d - \dot q) + K_p(q_d - q)$$
 
-Instead of pushing harder when the error grows, the controller computes the torque the arm
-actually needs for the motion it wants, and adds a small correction. Substituting into the
-robot dynamics leaves
+Rather than pushing harder as the error grows, this computes the torque the arm actually
+needs for the motion being asked of it, then adds a small correction on top. Substituting
+it into the robot dynamics leaves
 
 $$\ddot e + K_d \dot e + K_p e = 0$$
 
-which is the same second-order system for every joint, in every pose. The gains stop being
-seven tuned pairs and become a pole placement: one natural frequency `OMEGA = 20 rad/s`,
-critically damped, and `Kp = OMEGA²`, `Kd = 2·OMEGA` follow.
+the same second-order system for every joint in every pose. So the gains are no longer
+seven tuned pairs but a pole placement. Pick one natural frequency, `OMEGA = 20 rad/s`,
+make it critically damped, and `Kp = OMEGA²` and `Kd = 2·OMEGA` follow from that.
 
 ---
 
 ## Results
 
-All three controllers, same trajectory, same gains, side by side:
+All three controllers on the same trajectory with the same gains:
 
 <p align="center">
   <img src="docs/media/comparison.gif" width="900" alt="Three controllers running the same trajectory side by side">
@@ -115,22 +118,21 @@ All three controllers, same trajectory, same gains, side by side:
   </picture>
 </p>
 
-Raw numbers live in [`docs/results.csv`](docs/results.csv).
+The raw numbers are in [`docs/results.csv`](docs/results.csv).
 
-## The part that did not go as expected
+## The friction problem
 
-The middle row of that table is the interesting one. A *more* sophisticated,
-model-based controller tracked **three times worse** than the simple PD law it was
-supposed to improve on.
+The middle row of that table is the interesting one. The model-based controller, which was
+supposed to be the improvement, tracked three times worse than the PD law from step 2.
 
-The textbook derivation assumes the robot is rigid bodies with mass and nothing else. But
+The textbook derivation treats the robot as rigid bodies with mass and nothing else. But
 `xarm7.xml` also gives every arm joint viscous damping (10/10/5/5/5/2/2 N·m·s/rad) and
-Coulomb `frictionloss` of 1 N·m. Those forces are real in the simulation, but they are not
-part of $M\ddot q + C\dot q + g$ — MuJoCo keeps them in `qfrc_passive`, not `qfrc_bias` —
-so the rigid-body model Pinocchio builds from the same file cannot see them, and the
-textbook law never cancels them.
+Coulomb `frictionloss` of 1 N·m. Those forces act in the simulation, but they are not part
+of $M\ddot q + C\dot q + g$. MuJoCo keeps them in `qfrc_passive` rather than `qfrc_bias`,
+so the rigid-body model Pinocchio builds from the same file never sees them, and the
+control law never cancels them.
 
-They are not a rounding error:
+They turn out to be large:
 
 <p align="center">
   <picture>
@@ -139,23 +141,24 @@ They are not a rounding error:
   </picture>
 </p>
 
-On joints 1, 3, 5 and 7 — the roll joints, whose axes stay roughly along the arm and so
-carry almost no gravity load — the friction terms are *larger* than the entire rigid-body
-contribution. Only joints 2 and 4 are genuinely dominated by gravity.
-Feedback linearization is unforgiving in a way a PD law is not: its whole
-premise is that it cancels the plant exactly, so anything left uncancelled goes straight
-into the tracking error. A spring-damper never claimed to know the plant, and quietly
-absorbs the same friction as extra damping.
+On joints 1, 3, 5 and 7 the friction terms are bigger than the whole rigid-body
+contribution. Those are the roll joints, whose axes point roughly along the arm, so they
+carry almost no gravity load. Only joints 2 and 4 are really dominated by gravity.
 
-> Worth stating plainly: the 0.029° figure comes from a simulation where the controller's
-> model and the plant are generated from the same XML. It demonstrates that feedback
-> linearization works; it is not a claim about hardware.
+Feedback linearization is much less forgiving about this than PD is. It works by
+cancelling the dynamics exactly, so whatever it fails to cancel goes straight into the
+tracking error. A spring-damper never assumed it knew the plant in the first place, and
+just absorbs the same friction as extra damping.
+
+One caveat on the 0.029°: the controller's model and the simulated plant are generated
+from the same XML file here. That number shows the method works, but it is not a claim
+about how this would behave on hardware.
 
 ## Why the reference has to be smooth
 
-Computed torque feeds the desired acceleration $\ddot q_d$ forward, so the reference cannot
-be a step — step 2's jumps between poses command an infinite acceleration and simply
-saturate the motors.
+The control law feeds the desired acceleration $\ddot q_d$ forward, so the reference cannot
+be a step. Step 2 jumped straight from one pose to the next, which asks for infinite
+acceleration and just saturates the motors.
 
 <p align="center">
   <picture>
@@ -165,9 +168,9 @@ saturate the motors.
 </p>
 
 With a step reference the same controller saturates the actuators on 7% of steps and peaks
-at 74° of error. Waypoints are therefore joined by quintic polynomials, which start and end
-at rest with zero acceleration, and take general initial conditions so that retargeting
-mid-move stays $C^2$ continuous:
+at 74° of error. Waypoints are joined by quintic polynomials instead. They start and end at
+rest with zero acceleration, and they take arbitrary initial conditions, so pressing `2`
+in the middle of a move to pose 3 re-plans from the current reference state without a jump.
 
 <p align="center">
   <picture>
@@ -197,47 +200,51 @@ docs/
 models/xarm7/          the robot description (see Attribution)
 ```
 
-## Reproducing everything
+## Regenerating the figures
 
 ```bash
-python tools/benchmark.py       # results.csv + all figures
+python tools/benchmark.py       # results.csv and all figures
 python tools/record_media.py    # all GIFs and stills
 ```
 
-Both are headless — no viewer window opens. Every number and curve in this README comes
-out of those two scripts, so nothing here can drift away from what the controllers
-actually do.
+Neither opens a window. Every number and plot in this file comes from those two scripts,
+so nothing here can quietly drift out of sync with the controllers.
+
+There is no plotting library in `environment.yml`, which is deliberate. matplotlib's
+compiled extensions will not load next to this mujoco/pinocchio stack on Windows: any draw
+call dies with delay-load error `0xc06d007f` in `matplotlib._path`, with no traceback. So
+`tools/_svg.py` writes the SVGs directly.
 
 ## Next steps
 
-- **Operational-space control** — add the task-space inertia $\Lambda = (JM^{-1}J^\top)^{-1}$
-  and a dynamically consistent nullspace projector, finishing
+- **Operational-space control.** Add the task-space inertia $\Lambda = (JM^{-1}J^\top)^{-1}$
+  and a dynamically consistent nullspace projector, to finish
   [`controllers/impedance_control.py`](controllers/impedance_control.py).
-- **Adaptive control (Slotine–Li)** — exploit linearity in the inertial parameters via
-  Pinocchio's `computeJointTorqueRegressor`, so the robot identifies what this project
-  currently reads out of an XML file. Given the friction result above, this is the obvious
-  continuation.
-- **Momentum-based external torque observer** — collision detection and hand-guiding with
-  no force/torque sensor.
-- **QP-based control** — solve for τ subject to the real actuator limits, joint limits, and
-  control-barrier constraints.
+- **Adaptive control (Slotine–Li).** The dynamics are linear in the inertial parameters, and
+  Pinocchio has `computeJointTorqueRegressor`, so the robot could identify for itself what
+  this project currently reads out of an XML file. After the friction result above, this is
+  the obvious thing to try next.
+- **Momentum-based external torque observer,** for collision detection and hand-guiding
+  without a force/torque sensor.
+- **QP-based control,** solving for τ subject to the real actuator limits, joint limits and
+  obstacle-avoidance constraints.
 
 ## Attribution
 
-The robot description in [`models/xarm7/`](models/xarm7/) is **not my work**. It comes from
-[MuJoCo Menagerie](https://github.com/google-deepmind/mujoco_menagerie) and is derived from
-UFACTORY's publicly available [xArm7 URDF](https://github.com/xArm-Developer/xarm_ros).
-Copyright © 2018 UFACTORY Inc.; see [`models/xarm7/LICENSE`](models/xarm7/LICENSE) for the
-full terms, which apply to that directory. Everything outside `models/` is my own.
+The robot description in [`models/xarm7/`](models/xarm7/) is not my work. It comes from
+[MuJoCo Menagerie](https://github.com/google-deepmind/mujoco_menagerie), derived from
+UFACTORY's public [xArm7 URDF](https://github.com/xArm-Developer/xarm_ros).
+Copyright © 2018 UFACTORY Inc. The full terms are in
+[`models/xarm7/LICENSE`](models/xarm7/LICENSE) and apply to that directory. Everything
+outside `models/` is mine.
 
 ## References
 
-- Siciliano, Sciavicco, Villani, Oriolo — *Robotics: Modelling, Planning and Control*, ch. 8
-  (computed torque and inverse dynamics control).
-- Khatib — *A Unified Approach for Motion and Force Control of Robot Manipulators: The
-  Operational Space Formulation*, IEEE J. Robotics and Automation, 1987.
-- Slotine, Li — *On the Adaptive Control of Robot Manipulators*, IJRR, 1987.
-- [MuJoCo documentation](https://mujoco.readthedocs.io/) — computation pipeline, `qfrc_bias`
-  vs `qfrc_passive`.
-- [Pinocchio documentation](https://stack-of-tasks.github.io/pinocchio/) — `crba`,
-  `nonLinearEffects`, `rnea`.
+- Siciliano, Sciavicco, Villani, Oriolo, *Robotics: Modelling, Planning and Control*, ch. 8.
+- Khatib, "A Unified Approach for Motion and Force Control of Robot Manipulators: The
+  Operational Space Formulation", IEEE J. Robotics and Automation, 1987.
+- Slotine and Li, "On the Adaptive Control of Robot Manipulators", IJRR, 1987.
+- [MuJoCo documentation](https://mujoco.readthedocs.io/), on the computation pipeline and
+  the difference between `qfrc_bias` and `qfrc_passive`.
+- [Pinocchio documentation](https://stack-of-tasks.github.io/pinocchio/), for `crba`,
+  `nonLinearEffects` and `rnea`.

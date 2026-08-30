@@ -45,14 +45,23 @@ def segment_bounds(t_end):
 # ── Figure 1: tracking error ──────────────────────────────────────────────────
 
 def fig_tracking_error(runs, mode):
-    f = _svg.Figure(860, 430, mode)
+    # Legends sit above the plot in every figure here. Below, they collide with
+    # the x-axis label.
+    f = _svg.Figure(860, 400, mode)
     c = f.c
-    f.title(64, 30, "Tracking error over one lap of the waypoint cycle",
-            "Worst joint error at each instant. Log scale - the three controllers "
-            "are two orders of magnitude apart.")
+    f.title(64, 28, "Tracking error over one lap of the waypoint cycle",
+            "Worst joint error at each instant. Log scale - the three "
+            "controllers are two orders of magnitude apart.")
+
+    f.legend(64, 78, [(LABELS[m], c["series"][i]) for i, m in enumerate(MODES)],
+             gap=268)
+    for i, m in enumerate(MODES):
+        f.text(80 + i * 268, 98,
+               f"RMS {runs[m]['rms_deg']:.3f}°   peak {runs[m]['peak_deg']:.2f}°",
+               c["muted"], 10)
 
     t = runs[MODES[0]]["t"]
-    p = _svg.Panel(f, 64, 92, 720, 250, (0, float(t[-1])), (1e-3, 20), yscale="log")
+    p = _svg.Panel(f, 64, 124, 720, 206, (0, float(t[-1])), (1e-3, 20), yscale="log")
 
     for b in segment_bounds(float(t[-1])):
         p.vline(b)
@@ -64,19 +73,13 @@ def fig_tracking_error(runs, mode):
 
     p.axis_x(label="time [s]")
     p.ylabel("worst joint error [deg]")
-
-    f.legend(64, 372, [(LABELS[m], c["series"][i]) for i, m in enumerate(MODES)],
-             gap=250)
-    for i, m in enumerate(MODES):
-        f.text(80 + i * 250, 396, f"RMS {runs[m]['rms_deg']:.3f}°  ·  "
-               f"peak {runs[m]['peak_deg']:.2f}°", c["muted"], 10)
     return f.save(os.path.join(FIGS, f"tracking-error-{mode}.svg"))
 
 
 # ── Figure 2: where the torque actually comes from ────────────────────────────
 
 def fig_torque_breakdown(runs, mode):
-    f = _svg.Figure(880, 430, mode)
+    f = _svg.Figure(880, 410, mode)
     c = f.c
     r = runs[s3.MODE_CT_FULL]
     names = [("inertial", "M(q)·a_ref"),
@@ -87,11 +90,15 @@ def fig_torque_breakdown(runs, mode):
     rms = {k: np.sqrt(np.mean(r["parts"][k] ** 2, axis=0)) for k, _ in names}
     ymax = max(v.max() for v in rms.values()) * 1.18
 
-    f.title(64, 30, "Friction is not a small correction",
-            "RMS contribution of each term over one lap. Only the first two are in "
-            "the rigid-body model; on joints 1, 3, 5 and 7 the other two are larger.")
+    f.title(64, 28, "Friction is not a small correction",
+            "RMS contribution of each term over one lap.")
+    f.text(64, 62, "Only the first two are in the rigid-body model. On joints "
+                   "1, 3, 5 and 7 the other two are larger.", c["text2"], 11)
 
-    p = _svg.Panel(f, 64, 92, 750, 250, (-0.5, s3.N_ARM - 0.5), (0, ymax))
+    f.legend(64, 92, [(lab, c["series"][i]) for i, (_, lab) in enumerate(names)],
+             gap=196)
+
+    p = _svg.Panel(f, 64, 124, 750, 206, (-0.5, s3.N_ARM - 0.5), (0, ymax))
     p.grid_y()
 
     slot = 750 / s3.N_ARM
@@ -105,9 +112,6 @@ def fig_torque_breakdown(runs, mode):
 
     p.axis_x(ticks=list(range(s3.N_ARM)), tick_fmt=lambda v: f"joint {int(v) + 1}")
     p.ylabel("RMS torque [N·m]")
-
-    f.legend(64, 378, [(lab, c["series"][i]) for i, (_, lab) in enumerate(names)],
-             gap=196)
     return f.save(os.path.join(FIGS, f"torque-breakdown-{mode}.svg"))
 
 
@@ -116,7 +120,7 @@ def fig_torque_breakdown(runs, mode):
 def fig_step_vs_quintic(step_run, quintic_run, mode):
     f = _svg.Figure(860, 520, mode)
     c = f.c
-    f.title(64, 30, "A step reference asks for infinite acceleration",
+    f.title(64, 28, "A step reference asks for infinite acceleration",
             "Same goal, same controller, same gains. Only the shape of the "
             "reference differs.")
 
@@ -125,8 +129,10 @@ def fig_step_vs_quintic(step_run, quintic_run, mode):
     series = ((step_run, "step reference", c["series"][1]),
               (quintic_run, "quintic reference", c["series"][0]))
 
+    f.legend(64, 78, [(lab, col) for _, lab, col in series], gap=210)
+
     qs = np.concatenate([r["q_d"][:, JOINT] for r, _, _ in series])
-    p1 = _svg.Panel(f, 64, 88, 720, 130, xlim,
+    p1 = _svg.Panel(f, 64, 108, 720, 122, xlim,
                     (float(qs.min()) - 0.15, float(qs.max()) + 0.15))
     for b in segment_bounds(float(t[-1])):
         p1.vline(b)
@@ -136,7 +142,7 @@ def fig_step_vs_quintic(step_run, quintic_run, mode):
     p1.axis_x(tick_fmt=lambda v: "")
     p1.ylabel("q_d joint 2 [rad]")
 
-    p2 = _svg.Panel(f, 64, 258, 720, 175, xlim, (-70, 70))
+    p2 = _svg.Panel(f, 64, 272, 720, 168, xlim, (-70, 70))
     for b in segment_bounds(float(t[-1])):
         p2.vline(b)
     p2.grid_y(ticks=[-50, -25, 0, 25, 50])
@@ -146,12 +152,11 @@ def fig_step_vs_quintic(step_run, quintic_run, mode):
         p2.line(r["t"], np.clip(r["tau"][:, JOINT], -70, 70), col, decimate=2)
     p2.axis_x(label="time [s]")
     p2.ylabel("commanded τ joint 2 [N·m]")
-    f.text(788, p2.sy(50), "±50 N·m limit", c["muted"], 9)
+    f.text(790, p2.sy(50), "±50 N·m limit", c["muted"], 9)
 
-    f.legend(64, 466, [(lab, col) for _, lab, col in series], gap=210)
-    f.text(64, 492, f"Step reference saturates the actuators on "
+    f.text(64, 500, f"Step reference saturates the actuators on "
                     f"{step_run['sat_pct']:.0f}% of steps and peaks at "
-                    f"{step_run['peak_deg']:.0f}° of error; the quintic never "
+                    f"{step_run['peak_deg']:.0f}° of error. The quintic never "
                     f"saturates.", c["text2"], 10)
     return f.save(os.path.join(FIGS, f"step-vs-quintic-{mode}.svg"))
 

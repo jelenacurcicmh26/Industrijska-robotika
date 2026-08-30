@@ -1,9 +1,9 @@
 # xArm7 — upravljanje na nivou momenata u MuJoCo-u
 
-Tri upravljačka zakona rastuće složenosti, na nivou momenata u zglobovima, primenjena na
-robotsku ruku UFACTORY xArm7 sa sedam stepeni slobode, izgrađena korak po korak.
-**MuJoCo** je simulator koji igra ulogu realnog sistema, **Pinocchio** računa dinamički
-model na koji se upravljanje oslanja, a njih dva se u svakom koraku porede međusobno.
+Tri upravljačka zakona na nivou momenata u zglobovima, primenjena na ruku UFACTORY xArm7
+sa sedam stepeni slobode, građena jedan na drugom. MuJoCo računa fiziku i igra ulogu
+realnog robota. Pinocchio računa model krutog tela koji upravljanje koristi. Svaki korak
+prvo proveri to dvoje jedno prema drugom, pa tek onda se osloni na njih.
 
 <p align="center">
   <img src="docs/media/hero.gif" width="620" alt="xArm7 prati ciklus međutačaka pod upravljanjem inverznom dinamikom">
@@ -39,9 +39,9 @@ python step2_PD_with_gravity_compensation.py
 python step3_computed_torque.py
 ```
 
-Pinocchio nema Windows paket na PyPI-ju i mora da se instalira sa conda-forge kanala.
-Paket koji se na PyPI-ju zove `pinocchio` je nepovezan i napušten projekat — instalacija
-preko pip-a daje prazan modul bez funkcije `buildModelFromMJCF`.
+Pinocchio mora da se instalira sa conda-forge kanala, jer za Windows ne postoji paket na
+PyPI-ju. Treba paziti na PyPI paket koji se zove `pinocchio`: to je drugi, napušten
+projekat, i instalacija preko pip-a daje prazan modul bez funkcije `buildModelFromMJCF`.
 
 Tasteri, kada prozor simulatora ima fokus:
 
@@ -63,19 +63,20 @@ Tasteri, kada prozor simulatora ima fokus:
   <img src="docs/media/step1-gravity.gif" width="520" alt="Ruka pada pod dejstvom gravitacije bez upravljačkog momenta">
 </p>
 
-Moment u svim zglobovima je nula, pa ruka pada. Suština nije u padanju, nego u tome što
-se u ovom koraku gravitacioni moment koji Pinocchio računa iz MJCF opisa poredi sa
-MuJoCo-vom veličinom `qfrc_bias`. Slaganje je reda 1e-13 N·m, i to je ono što opravdava
-sve što sledi.
+Moment u svim zglobovima je nula, pa ruka padne. Samo padanje nije poenta. Ovaj korak
+služi da se gravitacioni moment koji Pinocchio računa iz MJCF fajla uporedi sa MuJoCo-vom
+veličinom `qfrc_bias`. Slaganje je reda 1e-13 N·m. I 2. i 3. korak polaze od toga da
+Pinocchio-ov model opisuje istog robota kog MuJoCo simulira, pa to vredi jednom proveriti.
 
 ## 2. korak — PD regulator sa kompenzacijom gravitacije
 
 $$\tau = g(q) + K_p (q_d - q) + K_d(\dot q_d - \dot q)$$
 
-Gravitacija se poništava unaprednom kompenzacijom, a ostatak preuzima sistem opruge i
-prigušenja. Ovo radi, ali efektivna inercija koju zglob „oseća" zavisi od konfiguracije —
-ispruženu ruku je mnogo teže pokrenuti nego skupljenu — pa je jedno pojačanje premeko u
-jednoj pozi, a prenaglo u drugoj. Otuda sedam ručno podešenih parova pojačanja.
+Unapredna grana poništava gravitaciju, a ostatak preuzimaju opruga i prigušenje. Radi
+sasvim solidno, ali su pojačanja nezgodna za podešavanje. Koliku inerciju zglob „oseća"
+zavisi od konfiguracije: ispruženu ruku je mnogo teže pokrenuti nego skupljenu. Jedna
+vrednost pojačanja ispadne premeka u jednoj pozi, a prenagla u drugoj, i zato u fajlu
+stoji sedam ručno podešenih parova.
 
 ## 3. korak — inverzna dinamika (computed torque)
 
@@ -83,21 +84,22 @@ $$\tau = M(q)\,a_{\text{ref}} + C(q,\dot q)\dot q + g(q) + D\dot q + f_c \tanh(\
 
 $$a_{\text{ref}} = \ddot q_d + K_d(\dot q_d - \dot q) + K_p(q_d - q)$$
 
-Umesto da gura jače kada greška poraste, upravljanje računa moment koji je ruci zaista
-potreban za kretanje koje se traži, i dodaje malu korekciju. Uvrštavanjem u jednačine
-dinamike ostaje
+Umesto da gura jače kako greška raste, ovde se računa moment koji je ruci stvarno potreban
+za kretanje koje se od nje traži, pa se na to doda mala korekcija. Kada se to uvrsti u
+jednačine dinamike, ostaje
 
 $$\ddot e + K_d \dot e + K_p e = 0$$
 
-što je isti sistem drugog reda za svaki zglob i u svakoj pozi. Pojačanja prestaju da budu
-sedam ručno podešenih parova i postaju podešavanje polova: jedna sopstvena učestanost
-`OMEGA = 20 rad/s`, kritično prigušenje, a `Kp = OMEGA²` i `Kd = 2·OMEGA` slede iz nje.
+isti sistem drugog reda za svaki zglob i u svakoj pozi. Pojačanja zato više nisu sedam
+podešenih parova nego podešavanje polova. Bira se jedna sopstvena učestanost,
+`OMEGA = 20 rad/s`, uzme se kritično prigušenje, a `Kp = OMEGA²` i `Kd = 2·OMEGA` slede
+iz toga.
 
 ---
 
 ## Rezultati
 
-Sva tri zakona, ista putanja, ista pojačanja, jedan pored drugog:
+Sva tri zakona na istoj putanji i sa istim pojačanjima:
 
 <p align="center">
   <img src="docs/media/comparison.gif" width="900" alt="Tri upravljačka zakona na istoj putanji">
@@ -118,19 +120,19 @@ Sva tri zakona, ista putanja, ista pojačanja, jedan pored drugog:
 
 Sirovi brojevi se nalaze u [`docs/results.csv`](docs/results.csv).
 
-## Deo koji nije prošao očekivano
+## Problem sa trenjem
 
-Zanimljiv je srednji red te tabele. *Napredniji* zakon, zasnovan na modelu, pratio je
-**tri puta lošije** od jednostavnog PD regulatora koji je trebalo da nadmaši.
+Zanimljiv je srednji red te tabele. Zakon zasnovan na modelu, koji je trebalo da bude
+poboljšanje, pratio je tri puta lošije od PD regulatora iz 2. koraka.
 
-Udžbenički izvod pretpostavlja da je robot skup krutih tela sa masom i ništa više. Ali
+Udžbenički izvod posmatra robota kao skup krutih tela sa masom i ništa više. Ali
 `xarm7.xml` svakom zglobu ruke dodeljuje i viskozno prigušenje (10/10/5/5/5/2/2 N·m·s/rad)
-i Kulonovo trenje (`frictionloss`) od 1 N·m. Te sile su stvarne u simulaciji, ali nisu deo
-izraza $M\ddot q + C\dot q + g$ — MuJoCo ih drži u `qfrc_passive`, a ne u `qfrc_bias` — pa
-ih model krutog tela koji Pinocchio gradi iz istog fajla ne vidi, i udžbenički zakon ih
-nikada ne poništava.
+i Kulonovo trenje (`frictionloss`) od 1 N·m. Te sile deluju u simulaciji, ali nisu deo
+izraza $M\ddot q + C\dot q + g$. MuJoCo ih drži u `qfrc_passive`, a ne u `qfrc_bias`, pa
+ih model krutog tela koji Pinocchio gradi iz istog fajla nikada ne vidi, i upravljački
+zakon ih nikada ne poništi.
 
-Nisu u pitanju zanemarljive veličine:
+Ispostavlja se da nisu male:
 
 <p align="center">
   <picture>
@@ -139,24 +141,24 @@ Nisu u pitanju zanemarljive veličine:
   </picture>
 </p>
 
-U zglobovima 1, 3, 5 i 7 — rotacionim zglobovima čije ose leže približno duž ruke, pa
-gotovo i ne nose gravitaciono opterećenje — članovi trenja su *veći* od celokupnog
-doprinosa krutog tela. Samo su zglobovi 2 i 4 zaista pod dominantnim uticajem gravitacije.
+U zglobovima 1, 3, 5 i 7 članovi trenja su veći od celog doprinosa krutog tela. To su
+rotacioni zglobovi čije ose leže približno duž ruke, pa gotovo i ne nose gravitaciono
+opterećenje. Samo su zglobovi 2 i 4 zaista pod dominantnim uticajem gravitacije.
 
-Linearizacija povratnom spregom je neoprostiva na način na koji PD regulator nije: njena
-cela premisa je da tačno poništava dinamiku sistema, pa sve što ostane neponišteno ide
-pravo u grešku praćenja. Sistem opruge i prigušenja nikada nije ni tvrdio da poznaje
-sistem, i isto to trenje tiho apsorbuje kao dodatno prigušenje.
+Linearizacija povratnom spregom je oko ovoga mnogo manje popustljiva nego PD. Ona radi
+tako što tačno poništava dinamiku, pa sve što ne uspe da poništi ide pravo u grešku
+praćenja. Opruga i prigušenje nikada nisu ni pretpostavili da poznaju sistem, i isto to
+trenje jednostavno pokupe kao dodatno prigušenje.
 
-> Vredi reći otvoreno: vrednost od 0.029° dolazi iz simulacije u kojoj su model koji
-> upravljanje koristi i sam simulirani sistem generisani iz istog XML fajla. To pokazuje
-> da linearizacija povratnom spregom radi; to nije tvrdnja o ponašanju na realnom robotu.
+Jedna ograda oko vrednosti od 0.029°: ovde su model koji upravljanje koristi i simulirani
+sistem generisani iz istog XML fajla. Taj broj pokazuje da metoda radi, ali nije tvrdnja
+o tome kako bi se ovo ponašalo na stvarnom robotu.
 
 ## Zašto zadata putanja mora da bude glatka
 
-Inverzna dinamika unapred prosleđuje željeno ubrzanje $\ddot q_d$, pa zadata veličina ne
-može da bude odskočna funkcija — skokovi iz 2. koraka između poza zahtevaju beskonačno
-ubrzanje i prosto dovedu pogone u zasićenje.
+Upravljački zakon unapred prosleđuje željeno ubrzanje $\ddot q_d$, pa zadata veličina ne
+može da bude odskočna. U 2. koraku se skakalo pravo iz jedne poze u drugu, što traži
+beskonačno ubrzanje i samo dovede pogone u zasićenje.
 
 <p align="center">
   <picture>
@@ -166,9 +168,9 @@ ubrzanje i prosto dovedu pogone u zasićenje.
 </p>
 
 Sa odskočnom zadatom vrednošću isti zakon dovodi pogone u zasićenje u 7% koraka i dostiže
-grešku od 74°. Zato su međutačke povezane polinomima petog reda, koji počinju i završavaju
-u mirovanju sa nultim ubrzanjem, i primaju proizvoljne početne uslove, tako da promena
-cilja usred kretanja ostaje $C^2$ neprekidna:
+grešku od 74°. Zato su međutačke povezane polinomima petog reda. Oni počinju i završavaju
+u mirovanju sa nultim ubrzanjem, i primaju proizvoljne početne uslove, pa pritisak na `2`
+usred kretanja ka pozi 3 planira novu putanju od trenutnog stanja, bez skoka.
 
 <p align="center">
   <picture>
@@ -198,46 +200,53 @@ docs/
 models/xarm7/          opis robota (videti Poreklo modela)
 ```
 
-## Ponovno generisanje svega
+## Ponovno generisanje grafika
 
 ```bash
 python tools/benchmark.py       # results.csv i svi grafici
 python tools/record_media.py    # sve animacije i slike
 ```
 
-Obe skripte rade bez otvaranja prozora. Svaki broj i svaki grafik u ovom dokumentu dolazi
-iz njih, tako da ništa ovde ne može da se razmimoiđe sa onim što upravljanje zaista radi.
+Nijedna od te dve skripte ne otvara prozor. Svaki broj i svaki grafik u ovom dokumentu
+dolazi iz njih, tako da ništa ovde ne može neprimetno da se razmimoiđe sa onim što
+upravljanje zaista radi.
+
+U `environment.yml` namerno nema biblioteke za crtanje. Prevedeni delovi matplotlib-a ne
+mogu da se učitaju pored ovog mujoco/pinocchio okruženja na Windows-u: svaki poziv za
+iscrtavanje pukne sa greškom `0xc06d007f` u `matplotlib._path`, bez ikakve poruke. Zato
+`tools/_svg.py` sam ispisuje SVG fajlove.
 
 ## Naredni koraci
 
-- **Upravljanje u prostoru zadatka** — dodavanje matrice inercije u prostoru zadatka
-  $\Lambda = (JM^{-1}J^\top)^{-1}$ i dinamički doslednog projektora nulti prostor, čime bi
+- **Upravljanje u prostoru zadatka.** Dodati matricu inercije u prostoru zadatka
+  $\Lambda = (JM^{-1}J^\top)^{-1}$ i dinamički dosledan projektor na nulti prostor, čime bi
   se dovršio [`controllers/impedance_control.py`](controllers/impedance_control.py).
-- **Adaptivno upravljanje (Slotine–Li)** — iskorišćavanje linearnosti po inercijalnim
-  parametrima preko funkcije `computeJointTorqueRegressor` iz Pinocchio-a, tako da robot
-  sam identifikuje ono što se u ovom projektu čita iz XML fajla. S obzirom na gornji nalaz
-  o trenju, ovo je očigledan nastavak.
-- **Posmatrač spoljašnjeg momenta zasnovan na impulsu** — detekcija sudara i vođenje rukom
-  bez senzora sile.
-- **Upravljanje zasnovano na kvadratnom programiranju** — određivanje momenta uz poštovanje
-  stvarnih ograničenja pogona, granica zglobova i ograničenja za izbegavanje prepreka.
+- **Adaptivno upravljanje (Slotine–Li).** Dinamika je linearna po inercijalnim parametrima,
+  a Pinocchio ima `computeJointTorqueRegressor`, pa bi robot mogao sam da identifikuje ono
+  što se u ovom projektu čita iz XML fajla. Posle gornjeg nalaza o trenju, ovo je
+  očigledna sledeća stvar za probati.
+- **Posmatrač spoljašnjeg momenta zasnovan na impulsu,** za detekciju sudara i vođenje
+  rukom bez senzora sile.
+- **Upravljanje zasnovano na kvadratnom programiranju,** gde se moment određuje uz
+  poštovanje stvarnih ograničenja pogona, granica zglobova i uslova za izbegavanje
+  prepreka.
 
 ## Poreklo modela
 
-Opis robota u direktorijumu [`models/xarm7/`](models/xarm7/) **nije moj rad**. Preuzet je
-iz [MuJoCo Menagerie](https://github.com/google-deepmind/mujoco_menagerie) i izveden je iz
-javno dostupnog [xArm7 URDF opisa](https://github.com/xArm-Developer/xarm_ros) kompanije
-UFACTORY. Copyright © 2018 UFACTORY Inc.; puni uslovi, koji važe za taj direktorijum, nalaze
-se u [`models/xarm7/LICENSE`](models/xarm7/LICENSE). Sve izvan `models/` je moj rad.
+Opis robota u direktorijumu [`models/xarm7/`](models/xarm7/) nije moj rad. Preuzet je iz
+[MuJoCo Menagerie](https://github.com/google-deepmind/mujoco_menagerie), a izveden je iz
+javnog [xArm7 URDF opisa](https://github.com/xArm-Developer/xarm_ros) kompanije UFACTORY.
+Copyright © 2018 UFACTORY Inc. Puni uslovi stoje u
+[`models/xarm7/LICENSE`](models/xarm7/LICENSE) i važe za taj direktorijum. Sve izvan
+`models/` je moje.
 
 ## Literatura
 
-- Siciliano, Sciavicco, Villani, Oriolo — *Robotics: Modelling, Planning and Control*, pogl. 8
-  (upravljanje inverznom dinamikom).
-- Khatib — *A Unified Approach for Motion and Force Control of Robot Manipulators: The
-  Operational Space Formulation*, IEEE J. Robotics and Automation, 1987.
-- Slotine, Li — *On the Adaptive Control of Robot Manipulators*, IJRR, 1987.
-- [MuJoCo dokumentacija](https://mujoco.readthedocs.io/) — tok proračuna, razlika između
-  `qfrc_bias` i `qfrc_passive`.
-- [Pinocchio dokumentacija](https://stack-of-tasks.github.io/pinocchio/) — `crba`,
-  `nonLinearEffects`, `rnea`.
+- Siciliano, Sciavicco, Villani, Oriolo, *Robotics: Modelling, Planning and Control*, pogl. 8.
+- Khatib, „A Unified Approach for Motion and Force Control of Robot Manipulators: The
+  Operational Space Formulation", IEEE J. Robotics and Automation, 1987.
+- Slotine i Li, „On the Adaptive Control of Robot Manipulators", IJRR, 1987.
+- [MuJoCo dokumentacija](https://mujoco.readthedocs.io/), o toku proračuna i razlici
+  između `qfrc_bias` i `qfrc_passive`.
+- [Pinocchio dokumentacija](https://stack-of-tasks.github.io/pinocchio/), za `crba`,
+  `nonLinearEffects` i `rnea`.
