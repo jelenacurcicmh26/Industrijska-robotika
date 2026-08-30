@@ -122,8 +122,8 @@ The raw numbers are in [`docs/results.csv`](docs/results.csv).
 
 ## The friction problem
 
-The middle row of that table is the interesting one. The model-based controller, which was
-supposed to be the improvement, tracked three times worse than the PD law from step 2.
+The model-based controller, which was supposed to be the improvement, 
+tracked three times worse than the PD law from step 2.
 
 The textbook derivation treats the robot as rigid bodies with mass and nothing else. But
 `xarm7.xml` also gives every arm joint viscous damping (10/10/5/5/5/2/2 N·m·s/rad) and
